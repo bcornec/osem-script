@@ -25,11 +25,11 @@ my $sth = $dbh->prepare($rqt) || die "Unable to prepare request $rqt";
 $sth->execute() || die "Unable to execute request $rqt";
 
 my $tt = Template->new({ENCODING => 'utf8', ABSOLUTE => 1}) || die "$Template::ERROR\n";
-my @date = (localtime->sec(), localtime->min(), localtime->hour(), localtime->mday(), localtime->mon(), localtime->year(), localtime->wday(), localtime->yday(), localtime->isdst());
-my $date = strftime("%Y%m%d%H%M%S", @date);
 
 # Substitute variables
 while (my $ref = $sth->fetchrow_hashref()) {
+	my @date = (localtime->sec(), localtime->min(), localtime->hour(), localtime->mday(), localtime->mon(), localtime->year(), localtime->wday(), localtime->yday(), localtime->isdst());
+	my $date = strftime("%Y%m%d%H%M%S", @date);
 	# Transforming templates
 	$tt->process("/subject",$ref,"/tmp/subject",{ binmode => ':encoding(utf8)' }) || die "Template process failed: ", $tt->error(), "\n";
 	open(SUB,'/tmp/subject') || die "Unable to read /tmp/subject";
@@ -64,6 +64,8 @@ while (my $ref = $sth->fetchrow_hashref()) {
 	# Envoi du mail
 	#print "Dump mail: ".Dumper(%mail)."\n";
 	sendmail(%mail) || die "Impossible d\'envoyer le mail ($Mail::Sendmail::error): $Mail::Sendmail::log";
+	# Force a different msg-id !
+	sleep(1);
 	}
 $sth->finish();
 $dbh->disconnect();
