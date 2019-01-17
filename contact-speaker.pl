@@ -7,6 +7,8 @@ use Mail::Sendmail;
 use MIME::Base64; ## content-transfer-encoding
 use MIME::Words qw(encode_mimewords); ## handle UTF-8 in mail headers
 use Data::Dumper;
+use Time::localtime qw(localtime);
+use POSIX qw(strftime);
 
 #print "env: \n";
 #system('printenv');
@@ -23,6 +25,8 @@ my $sth = $dbh->prepare($rqt) || die "Unable to prepare request $rqt";
 $sth->execute() || die "Unable to execute request $rqt";
 
 my $tt = Template->new({ENCODING => 'utf8', ABSOLUTE => 1}) || die "$Template::ERROR\n";
+my @date = (localtime->sec(), localtime->min(), localtime->hour(), localtime->mday(), localtime->mon(), localtime->year(), localtime->wday(), localtime->yday(), localtime->isdst());
+my $date = strftime("%Y%m%d%H%M%S", @date);
 
 # Substitute variables
 while (my $ref = $sth->fetchrow_hashref()) {
@@ -45,10 +49,15 @@ while (my $ref = $sth->fetchrow_hashref()) {
 		To => "$ref->{'email'}",
 		From => 'FLOSSCon 2019 <osem@flosscon.org>',
 		Cc => 'FLOSSCon 2019 <flosscon@flossita.org>',
+		"Reply-To" => 'FLOSSCon <flosscon@flossita.org>',
 		Smtp => 'smtp.hyper-linux.org',
 		Subject => "[FLOSSCon] ".$sub,
 		"Content-type" => 'text/plain; charset="utf-8"',
-		"Content-Transfer-Encoding" => 'base64'
+		"Content-Transfer-Encoding" => 'base64',
+		# To please gmail
+		"Message-ID" => "<$date.speaker\@flosscon.org>",
+		"Precedence" => "bulk",
+		"User-Agent" => 'contact-speaker.pl',
 	);
 	#utf8::encode($body);
 	$mail{'Body'} = encode_base64($body);
