@@ -3,8 +3,11 @@
 use strict;
 use DBI;
 use Template;
-use Mail::Sendmail;
+#use Mail::Sendmail;
+use MIME::Lite;
 
+print "env: \n";
+system('printenv');
 #print "found env var MSYQL: ***$ENV{'MYSQL_PASSWD'}***\n";
 #
 ## Make mutt happy
@@ -14,7 +17,7 @@ mkdir("$md",0750) if (not -d "$md");
 open(RQT,'/request.sql') || die "Unable to read /request.sql";
 my $rqt = <RQT>;
 close(RQT);
-my $dbh = DBI->connect("DBI:mysql:database=osem;host=osem-database", "osem", $ENV{'MYSQL_PASSWD'}, {'RaiseError' => 1});
+my $dbh = DBI->connect("DBI:mysql:database=osem;host=$ENV{'MYSQL_SRV'}", "osem", $ENV{'MYSQL_PASSWD'}, {'RaiseError' => 1});
 my $sth = $dbh->prepare($rqt) || die "Unable to prepare request $rqt";
 $sth->execute() || die "Unable to execute request $rqt";
 
@@ -33,19 +36,20 @@ while (my $ref = $sth->fetchrow_hashref()) {
 	close(BODY);
 	#
 	print "Sending mail to $ref->{'email'} on $sub\n";
-	#system("mutt $ref->{'email'} -s \"\[FLOSSCon\] $sub\" -i /tmp/body < /dev/null");
 	# Preparation of headers 
 	#
 	my %mail = (
 		To => $ref->{'email'} ,
-		From => 'FLOSSCon 2019 <flosscon@flosscon.org>',
+		From => 'FLOSSCon 2019 <osem@flosscon.org>',
 		Cc => 'FLOSSCon 2019 <flosscon@flosscon.org>',
-		Smtp => 'mail',
 		Body => $body,
 		Subject => "[FLOSSCon]".$sub,
+		#Smtp => 'mail',
 	);
 	# Envoi du mail
-	sendmail(%mail) || die "Impossible d\'envoyer le mail ($Mail::Sendmail::error): $Mail::Sendmail::log";
+	my $msg = MIME::Lite->new(%mail);
+	#sendmail(%mail) || die "Impossible d\'envoyer le mail ($Mail::Sendmail::error): $Mail::Sendmail::log";
+	$msg->send('smtp', 'mail', AuthUser=>"$ENV{'OSEM_SMTP_USERNAME'}", AuthPass=>"$ENV{'OSEM_SMTP_PASSWORD'}") || die "Impossible d\'envoyer le mail";
 	}
 $sth->finish();
 $dbh->disconnect();
